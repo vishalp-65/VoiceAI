@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Riverside Family Health — Voice Scheduling</title>
+  <style>
+    :root {
+      --bg: #0f1419; --panel: #1a212b; --panel-2: #222c38;
+      --text: #e6edf3; --muted: #8b98a5; --accent: #4f9cf9;
+      --user: #2b3a4f; --bot: #1f3326; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid #2a3441;
+    }
+    header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+    header .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .pill {
+      font-size: 12px; padding: 5px 12px; border-radius: 999px; font-weight: 600;
+      background: var(--panel-2); color: var(--muted); border: 1px solid #2a3441;
+    }
+    .pill.live { background: rgba(63,185,80,.15); color: var(--ok); border-color: rgba(63,185,80,.4); }
+    .pill.connecting { background: rgba(210,153,34,.15); color: var(--warn); border-color: rgba(210,153,34,.4); }
+
+    main { flex: 1; display: grid; grid-template-columns: 1fr 320px; gap: 16px; padding: 16px 24px; min-height: 0; }
+    .panel { background: var(--panel); border: 1px solid #2a3441; border-radius: var(--radius); display: flex; flex-direction: column; min-height: 0; }
+    .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0; padding: 14px 16px; border-bottom: 1px solid #2a3441; }
+
+    #transcript { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; }
+    .bubble.user { align-self: flex-end; background: var(--user); border-bottom-right-radius: 4px; }
+    .bubble.bot { align-self: flex-start; background: var(--bot); border-bottom-left-radius: 4px; }
+    .bubble .who { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .bubble.interim { opacity: .55; font-style: italic; }
+    .empty { color: var(--muted); font-size: 14px; margin: auto; text-align: center; }
+
+    aside { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+    .metric { padding: 16px; }
+    .metric .big { font-size: 34px; font-weight: 700; line-height: 1; }
+    .metric .unit { font-size: 15px; color: var(--muted); font-weight: 500; }
+    .metric .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .metric .row b { color: var(--text); font-weight: 600; }
+    .latency-good { color: var(--ok); }
+    .latency-mid { color: var(--warn); }
+    .latency-bad { color: var(--bad); }
+
+    .cheats { padding: 8px 16px 16px; overflow-y: auto; }
+    .cheats li { font-size: 13px; color: var(--muted); margin: 12px 0; line-height: 1.4; }
+    .cheats li b { color: var(--text); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; }
+
+    footer { padding: 14px 24px; border-top: 1px solid #2a3441; display: flex; align-items: center; gap: 16px; }
+    button {
+      font-size: 15px; font-weight: 600; padding: 11px 22px; border-radius: 10px; border: none;
+      cursor: pointer; transition: background .15s, transform .05s;
+    }
+    button:active { transform: translateY(1px); }
+    #callBtn { background: var(--accent); color: #fff; }
+    #callBtn.end { background: var(--bad); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .mic { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #3a4654; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(63,185,80,.18); }
+    .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Riverside Family Health — Voice Scheduling</h1>
+      <div class="sub">Talk to Robin to book, reschedule, or cancel a consultation.</div>
+    </div>
+    <span id="status" class="pill">Idle</span>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Live transcript</h2>
+      <div id="transcript"><div class="empty">Press <b>Start call</b> and allow your microphone to begin.</div></div>
+    </section>
+
+    <aside>
+      <div class="panel metric">
+        <h2 style="border:0;padding:0 0 10px">Last response latency</h2>
+        <div><span id="lat" class="big">—</span> <span class="unit">ms</span></div>
+        <div class="row"><span>Rolling average</span><b id="latAvg">—</b></div>
+        <div class="row"><span>Turns measured</span><b id="latN">0</b></div>
+        <div class="row" style="margin-top:6px"><span>Call state</span><b id="callState">idle</b></div>
+      </div>
+
+      <div class="panel" style="min-height:0">
+        <h2>Edge cases to try</h2>
+        <ul class="cheats">
+          <li><b>Barge-in</b>Interrupt Robin mid-sentence — it stops and listens.</li>
+          <li><b>Ambiguity</b>Spell your last name, read a phone number, say "ten thirty" — it reads back to confirm.</li>
+          <li><b>Going silent</b>Stop talking — it nudges, then politely ends the call.</li>
+          <li><b>Change of mind</b>Start booking, then say "actually, cancel my appointment instead".</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <button id="callBtn">Start call</button>
+    <div class="mic"><span id="micDot" class="dot"></span> microphone</div>
+    <span class="hint">Latency = silence-to-first-audio, measured in your browser.</span>
+  </footer>
+
+  <audio id="botAudio" autoplay></audio>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
