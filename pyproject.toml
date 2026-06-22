@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voiceai"
+version = "0.1.0"
+description = "Live voice agent that books medical consultations over a browser-mic call (FastAPI + Pipecat)."
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Vishal" }]
+
+dependencies = [
+    # Voice pipeline framework + the three model providers + WebRTC transport + local VAD.
+    # The `silero` extra ships a lightweight ONNX VAD (no torch); `webrtc` pulls aiortc/av.
+    "pipecat-ai[anthropic,deepgram,cartesia,silero,webrtc]>=0.0.90",
+    # Optional zero-config browser client used as a fallback UI at /client.
+    "pipecat-ai-small-webrtc-prebuilt",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic-settings>=2.4",
+    "python-dotenv>=1.0",
+    "loguru>=0.7",
+    # IANA timezone DB — required for zoneinfo on Windows (no system tz data).
+    "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # line length handled by formatter; long prompt strings are fine
