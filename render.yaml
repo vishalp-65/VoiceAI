@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: voiceai
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        value: claude-sonnet-4-6
+      - key: CARTESIA_API_KEY
+        sync: false
+      - key: STT_MODEL
+        value: nova-3
+      - key: TTS_MODEL
+        value: sonic-3.5
+      - key: TTS_VOICE_ID
+        value: 71a7ad14-091c-4e8e-a314-022ece01c121
+      - key: PORT
+        value: "7860"
+      - key: DATABASE_PATH
+        value: data/voiceai.db
+      - key: CLINIC_TIMEZONE
+        value: Asia/Kolkata
