@@ -97,10 +97,9 @@ async def health() -> JSONResponse:
     )
 
 
-@app.api_route("/api/offer", methods=["POST", "PATCH"])
+@app.post("/api/offer")
 async def offer(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     """WebRTC signaling. Creates a fresh pipeline for new peers; renegotiates existing ones."""
-    # Imported lazily so `/health` and tests don't require the heavy WebRTC stack.
     from pipecat.transports.base_transport import TransportParams
     from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
     from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
@@ -111,14 +110,12 @@ async def offer(request: Request, background_tasks: BackgroundTasks) -> JSONResp
     pc_id = body.get("pc_id")
 
     if pc_id and pc_id in _connections:
-        # Existing peer: renegotiate (e.g. ICE restart) without a new pipeline.
         conn = _connections[pc_id]
-        await conn.renegotiate(  # type: ignore[attr-defined]
+        await conn.renegotiate(
             sdp=body["sdp"], type=body["type"], restart_pc=body.get("restart_pc", False)
         )
-        return JSONResponse(conn.get_answer())  # type: ignore[attr-defined]
+        return JSONResponse(conn.get_answer())
 
-    # New peer: build the connection, transport, and a dedicated pipeline.
     conn = SmallWebRTCConnection(ICE_SERVERS)
     await conn.initialize(sdp=body["sdp"], type=body["type"])
 
@@ -141,3 +138,20 @@ async def offer(request: Request, background_tasks: BackgroundTasks) -> JSONResp
     _connections[answer["pc_id"]] = conn
     logger.info("New call {} ({} active)", answer["pc_id"], len(_connections))
     return JSONResponse(answer)
+
+
+@app.patch("/api/offer")
+async def offer_ice(request: Request) -> JSONResponse:
+    """Handle ICE candidate trickle from the SmallWebRTC client."""
+    body = await request.json()
+    pc_id = body.get("pc_id")
+
+    if not pc_id or pc_id not in _connections:
+        return JSONResponse({"error": "unknown peer"}, status_code=404)
+
+    conn = _connections[pc_id]
+    candidate = body.get("candidate")
+    if candidate:
+        await conn.add_ice_candidate(candidate)
+
+    return JSONResponse({"ok": True})
