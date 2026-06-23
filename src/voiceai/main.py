@@ -28,9 +28,6 @@ from .settings import get_settings
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
-# STUN keeps NAT traversal working for non-localhost demos; harmless locally.
-ICE_SERVERS = ["stun:stun.l.google.com:19302"]
-
 # Active peer connections, keyed by their WebRTC pc_id (for renegotiation/cleanup).
 _connections: dict[str, object] = {}
 
@@ -116,7 +113,7 @@ async def offer(request: Request, background_tasks: BackgroundTasks) -> JSONResp
         )
         return JSONResponse(conn.get_answer())
 
-    conn = SmallWebRTCConnection(ICE_SERVERS)
+    conn = SmallWebRTCConnection(get_settings().ice_servers())
     await conn.initialize(sdp=body["sdp"], type=body["type"])
 
     @conn.event_handler("closed")

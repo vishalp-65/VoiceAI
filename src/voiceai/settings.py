@@ -32,10 +32,19 @@ class Settings(BaseSettings):
     deepgram_api_key: str = Field(default="", alias="DEEPGRAM_API_KEY")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     anthropic_base_url: str = Field(default="", alias="ANTHROPIC_BASE_URL")
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
+    )
     cartesia_api_key: str = Field(default="", alias="CARTESIA_API_KEY")
 
     # --- Models ---------------------------------------------------------------
-    llm_model: str = Field(default="claude-haiku-4-5-20251001", alias="LLM_MODEL")
+    # Which LLM backend to use: "openrouter" (default) or "anthropic". This picks
+    # both the service class and which API key is required at call start.
+    llm_provider: str = Field(default="openrouter", alias="LLM_PROVIDER")
+    # Model id in the *provider's* naming: OpenRouter slug ("anthropic/claude-haiku-4.5")
+    # or Anthropic id ("claude-haiku-4-5-20251001") when LLM_PROVIDER=anthropic.
+    llm_model: str = Field(default="anthropic/claude-haiku-4.5", alias="LLM_MODEL")
     stt_model: str = Field(default="nova-3", alias="STT_MODEL")
     tts_model: str = Field(default="sonic-2", alias="TTS_MODEL")
     tts_voice_id: str = Field(
@@ -45,6 +54,35 @@ class Settings(BaseSettings):
     # --- Turn-taking / latency ------------------------------------------------
     idle_timeout_seconds: float = Field(default=6.0, alias="IDLE_TIMEOUT_SECONDS")
     allow_interruptions: bool = Field(default=True, alias="ALLOW_INTERRUPTIONS")
+
+    # --- WebRTC ICE -----------------------------------------------------------
+    # STUN is enough on localhost/LAN. On a PaaS like Render (no inbound UDP to
+    # arbitrary ports), a TURN relay is REQUIRED or media negotiation times out.
+    stun_url: str = Field(
+        default="stun:stun.l.google.com:19302", alias="STUN_URL"
+    )
+    # Comma-separated TURN URLs, e.g. "turn:turn.example.com:3478,turns:turn.example.com:5349".
+    turn_urls: str = Field(default="", alias="TURN_URLS")
+    turn_username: str = Field(default="", alias="TURN_USERNAME")
+    turn_credential: str = Field(default="", alias="TURN_CREDENTIAL")
+
+    def ice_servers(self) -> list:
+        """Build the ICE server list for SmallWebRTCConnection (STUN + optional TURN)."""
+        from aiortc import RTCIceServer
+
+        servers: list = []
+        if self.stun_url:
+            servers.append(RTCIceServer(urls=self.stun_url))
+        turn = [u.strip() for u in self.turn_urls.split(",") if u.strip()]
+        if turn:
+            servers.append(
+                RTCIceServer(
+                    urls=turn,
+                    username=self.turn_username or None,
+                    credential=self.turn_credential or None,
+                )
+            )
+        return servers
 
     # --- Server / storage -----------------------------------------------------
     host: str = Field(default="0.0.0.0", alias="HOST")
@@ -59,16 +97,20 @@ class Settings(BaseSettings):
         return p if p.is_absolute() else ROOT_DIR / p
 
     def require_provider_keys(self) -> None:
-        """Raise a clear error if any provider key is missing (called at call start)."""
-        missing = [
-            name
-            for name, value in (
-                ("DEEPGRAM_API_KEY", self.deepgram_api_key),
-                ("ANTHROPIC_API_KEY", self.anthropic_api_key),
-                ("CARTESIA_API_KEY", self.cartesia_api_key),
-            )
-            if not value
+        """Raise a clear error if any provider key is missing (called at call start).
+
+        The required LLM key depends on `llm_provider` — OpenRouter and Anthropic use
+        different keys, so we only enforce the one actually in use.
+        """
+        checks = [
+            ("DEEPGRAM_API_KEY", self.deepgram_api_key),
+            ("CARTESIA_API_KEY", self.cartesia_api_key),
         ]
+        if self.llm_provider == "openrouter":
+            checks.append(("OPENROUTER_API_KEY", self.openrouter_api_key))
+        else:
+            checks.append(("ANTHROPIC_API_KEY", self.anthropic_api_key))
+        missing = [name for name, value in checks if not value]
         if missing:
             raise RuntimeError(
                 "Missing required API key(s): "

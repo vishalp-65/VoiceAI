@@ -12,6 +12,8 @@ from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.services.anthropic.llm import AnthropicLLMService
 from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.deepgram.stt import DeepgramSTTService, LiveOptions
+from pipecat.services.llm_service import LLMService
+from pipecat.services.openrouter.llm import OpenRouterLLMService
 
 from ..settings import Settings
 
@@ -46,15 +48,36 @@ def create_stt(settings: Settings) -> DeepgramSTTService:
     )
 
 
-def create_llm(settings: Settings) -> AnthropicLLMService:
-    """Claude with tool-calling. Default Sonnet 4.6 for the lowest time-to-first-token.
+def create_llm(settings: Settings) -> LLMService:
+    """Build the tool-calling LLM service for the configured provider.
 
-    `enable_prompt_caching=True` is the single biggest latency win here: the system
-    prompt + tool schemas (~2K static tokens) are otherwise re-encoded on every turn.
-    Pipecat marks the last two user messages with `cache_control`, so each turn reads
-    the whole stable prefix (system + tools + prior history) from Anthropic's cache
-    instead of reprocessing it — cutting input-token processing time and ~90% of input
-    cost. Watch for `cache_read_input_tokens > 0` in the logs to confirm it's working.
+    Default provider is OpenRouter, talking to Claude Haiku 4.5
+    (`anthropic/claude-haiku-4.5`) over its OpenAI-compatible API. Haiku's
+    time-to-first-token is ~2-4x lower than Sonnet's, which is what keeps the
+    user-stop -> bot-speak gap under ~2s for this constrained booking flow. The
+    provider-agnostic `ToolsSchema` and `register_function` wiring work unchanged.
+
+    Set `LLM_PROVIDER=anthropic` to use the Anthropic Messages API directly (or an
+    Anthropic-compatible passthrough via `ANTHROPIC_BASE_URL`); that path adds
+    explicit prompt caching of the static system+tools prefix. OpenRouter caches
+    Anthropic prompts implicitly, so there's no `enable_prompt_caching` knob there.
+    """
+    if settings.llm_provider == "openrouter":
+        return OpenRouterLLMService(
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url,
+            settings=OpenRouterLLMService.Settings(model=settings.llm_model),
+        )
+    return _create_anthropic_llm(settings)
+
+
+def _create_anthropic_llm(settings: Settings) -> AnthropicLLMService:
+    """Anthropic Messages API path.
+
+    `enable_prompt_caching=True` makes each turn read the stable system+tools prefix
+    (~2K static tokens) from Anthropic's cache instead of reprocessing it — cutting
+    input-token processing time and ~90% of input cost. Watch for
+    `cache_read_input_tokens > 0` in the logs to confirm it's working.
     """
     kwargs: dict = {
         "api_key": settings.anthropic_api_key,
