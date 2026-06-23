@@ -2,96 +2,281 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
   <title>Riverside Family Health — Voice Scheduling</title>
   <style>
     :root {
-      --bg: #0f1419; --panel: #1a212b; --panel-2: #222c38;
-      --text: #e6edf3; --muted: #8b98a5; --accent: #4f9cf9;
-      --user: #2b3a4f; --bot: #1f3326; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
-      --radius: 14px;
+      --bg: #0b0f14;
+      --bg-grad: radial-gradient(1200px 600px at 80% -10%, rgba(79,156,249,.12), transparent 60%),
+                 radial-gradient(900px 500px at -10% 110%, rgba(63,185,80,.08), transparent 55%);
+      --panel: rgba(26, 33, 43, .72);
+      --panel-solid: #1a212b;
+      --panel-2: #222c38;
+      --border: #283341;
+      --border-soft: rgba(255,255,255,.06);
+      --text: #e6edf3;
+      --muted: #8b98a5;
+      --muted-2: #5d6b7a;
+      --accent: #4f9cf9;
+      --accent-2: #6ee7ff;
+      --user-solid: #2b3a4f;
+      --bot: #182b1f;
+      --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+      --radius: 16px; --radius-sm: 10px;
+      --shadow: 0 10px 40px -12px rgba(0,0,0,.6);
+      --ease: cubic-bezier(.22,.61,.36,1);
     }
+
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column;
+      margin: 0;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-grad), var(--bg);
+      color: var(--text);
+      display: flex; flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
     }
+    ::selection { background: rgba(79,156,249,.3); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+    /* ---------- Header ---------- */
     header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 24px; border-bottom: 1px solid #2a3441;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      background: rgba(11,15,20,.6); backdrop-filter: blur(8px);
+      position: relative; z-index: 5;
     }
-    header h1 { font-size: 17px; margin: 0; font-weight: 650; }
-    header .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .logo {
+      width: 38px; height: 38px; border-radius: 11px; flex: none;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, var(--accent), #3b6fd4);
+      box-shadow: 0 6px 18px -6px rgba(79,156,249,.7), inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .logo svg { width: 20px; height: 20px; }
+    .brand h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+    .brand .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
     .pill {
-      font-size: 12px; padding: 5px 12px; border-radius: 999px; font-weight: 600;
-      background: var(--panel-2); color: var(--muted); border: 1px solid #2a3441;
+      font-size: 12px; padding: 6px 13px 6px 11px; border-radius: 999px; font-weight: 600;
+      background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+      display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+      transition: color .25s, background .25s, border-color .25s;
     }
-    .pill.live { background: rgba(63,185,80,.15); color: var(--ok); border-color: rgba(63,185,80,.4); }
-    .pill.connecting { background: rgba(210,153,34,.15); color: var(--warn); border-color: rgba(210,153,34,.4); }
+    .pill::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted-2);
+      transition: background .25s, box-shadow .25s;
+    }
+    .pill.live { background: rgba(63,185,80,.13); color: var(--ok); border-color: rgba(63,185,80,.35); }
+    .pill.live::before { background: var(--ok); box-shadow: 0 0 0 0 rgba(63,185,80,.5); animation: ping 1.8s var(--ease) infinite; }
+    .pill.connecting { background: rgba(210,153,34,.13); color: var(--warn); border-color: rgba(210,153,34,.35); }
+    .pill.connecting::before { background: var(--warn); animation: blink 1s steps(2,start) infinite; }
+    .pill.error { background: rgba(248,81,73,.13); color: var(--bad); border-color: rgba(248,81,73,.35); }
+    .pill.error::before { background: var(--bad); }
 
-    main { flex: 1; display: grid; grid-template-columns: 1fr 320px; gap: 16px; padding: 16px 24px; min-height: 0; }
-    .panel { background: var(--panel); border: 1px solid #2a3441; border-radius: var(--radius); display: flex; flex-direction: column; min-height: 0; }
-    .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0; padding: 14px 16px; border-bottom: 1px solid #2a3441; }
+    @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(63,185,80,.5); } 70%,100% { box-shadow: 0 0 0 7px rgba(63,185,80,0); } }
+    @keyframes blink { 50% { opacity: .35; } }
 
-    #transcript { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; }
-    .bubble.user { align-self: flex-end; background: var(--user); border-bottom-right-radius: 4px; }
-    .bubble.bot { align-self: flex-start; background: var(--bot); border-bottom-left-radius: 4px; }
-    .bubble .who { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
-    .bubble.interim { opacity: .55; font-style: italic; }
-    .empty { color: var(--muted); font-size: 14px; margin: auto; text-align: center; }
+    /* ---------- Layout ---------- */
+    main {
+      flex: 1; display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 18px;
+      padding: 18px 24px; min-height: 0; position: relative; z-index: 1;
+    }
+    .panel {
+      background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius);
+      display: flex; flex-direction: column; min-height: 0;
+      box-shadow: var(--shadow); backdrop-filter: blur(10px);
+    }
+    .panel > h2 {
+      font-size: 11.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted);
+      margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel > h2 .speaking-tag {
+      margin-left: auto; font-size: 11px; letter-spacing: .3px; text-transform: none;
+      color: var(--accent-2); display: none; align-items: center; gap: 6px; font-weight: 600;
+    }
+    body.bot-speaking .panel > h2 .speaking-tag { display: inline-flex; }
+    .speaking-tag .wave { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+    .speaking-tag .wave i { width: 2.5px; height: 4px; border-radius: 2px; background: var(--accent-2); animation: eq .9s var(--ease) infinite; }
+    .speaking-tag .wave i:nth-child(2){ animation-delay:.15s } .speaking-tag .wave i:nth-child(3){ animation-delay:.3s } .speaking-tag .wave i:nth-child(4){ animation-delay:.45s }
+    @keyframes eq { 0%,100% { height: 4px; } 50% { height: 12px; } }
 
-    aside { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
-    .metric { padding: 16px; }
-    .metric .big { font-size: 34px; font-weight: 700; line-height: 1; }
+    /* ---------- Transcript ---------- */
+    .transcript-wrap { position: relative; flex: 1; min-height: 0; }
+    #transcript {
+      position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+      padding: 18px 18px 22px; display: flex; flex-direction: column; gap: 12px;
+      scroll-behavior: smooth;
+    }
+    #transcript::-webkit-scrollbar { width: 10px; }
+    #transcript::-webkit-scrollbar-thumb { background: #2c3845; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+    #transcript::-webkit-scrollbar-thumb:hover { background: #3a4856; background-clip: content-box; }
+
+    .row { display: flex; gap: 10px; align-items: flex-end; max-width: 86%; animation: rise .28s var(--ease) both; }
+    .row.user { align-self: flex-end; flex-direction: row-reverse; }
+    .row.bot { align-self: flex-start; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .avatar {
+      width: 28px; height: 28px; border-radius: 9px; flex: none; display: grid; place-items: center;
+      font-size: 12px; font-weight: 700; margin-bottom: 18px;
+    }
+    .row.bot .avatar { background: linear-gradient(145deg, #2f7d4f, #245f3c); color: #d7ffe4; }
+    .row.user .avatar { background: linear-gradient(145deg, #3f6193, var(--user-solid)); color: #dce9ff; }
+
+    .bubble-col { min-width: 0; display: flex; flex-direction: column; }
+    .row.user .bubble-col { align-items: flex-end; }
+    .meta { font-size: 10.5px; color: var(--muted-2); margin: 0 4px 4px; display: flex; gap: 6px; }
+    .bubble {
+      padding: 10px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word; max-width: 100%;
+      box-shadow: 0 1px 0 rgba(0,0,0,.2);
+    }
+    .row.user .bubble { background: var(--user-solid); border-bottom-right-radius: 5px; }
+    .row.bot .bubble { background: var(--bot); border: 1px solid rgba(63,185,80,.14); border-bottom-left-radius: 5px; }
+    .bubble.interim { opacity: .6; }
+    .bubble.interim::after { content: "▍"; animation: blink 1s steps(2) infinite; color: var(--muted); margin-left: 1px; }
+
+    /* thinking dots */
+    .thinking .bubble { display: inline-flex; gap: 5px; padding: 14px; }
+    .thinking .bubble span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s var(--ease) infinite; }
+    .thinking .bubble span:nth-child(2){ animation-delay:.18s } .thinking .bubble span:nth-child(3){ animation-delay:.36s }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity:.5 } 30% { transform: translateY(-5px); opacity:1 } }
+
+    .empty {
+      margin: auto; text-align: center; color: var(--muted); font-size: 14px; max-width: 320px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px; animation: rise .4s var(--ease) both;
+    }
+    .empty .ring {
+      width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+      background: rgba(79,156,249,.08); border: 1px solid rgba(79,156,249,.25); color: var(--accent);
+    }
+    .empty .ring svg { width: 26px; height: 26px; }
+    .empty b { color: var(--text); }
+
+    /* jump-to-latest */
+    .jump {
+      position: absolute; left: 50%; bottom: 16px; transform: translate(-50%, 16px);
+      background: var(--accent); color: #fff; border: none; cursor: pointer;
+      font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 8px 24px -6px rgba(79,156,249,.7);
+      opacity: 0; pointer-events: none; transition: opacity .22s, transform .22s var(--ease);
+    }
+    .jump.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+    .jump svg { width: 14px; height: 14px; }
+
+    /* ---------- Aside ---------- */
+    aside { display: flex; flex-direction: column; gap: 18px; min-height: 0; }
+    .metric { padding: 16px 18px 18px; }
+    .metric .lat-line { display: flex; align-items: baseline; gap: 6px; margin: 4px 0 2px; }
+    .metric .big { font-size: 40px; font-weight: 750; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; transition: color .3s; }
     .metric .unit { font-size: 15px; color: var(--muted); font-weight: 500; }
-    .metric .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 10px; }
-    .metric .row b { color: var(--text); font-weight: 600; }
-    .latency-good { color: var(--ok); }
-    .latency-mid { color: var(--warn); }
-    .latency-bad { color: var(--bad); }
+    #spark { width: 100%; height: 44px; margin: 10px 0 4px; display: block; }
+    .metric .row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-top: 9px; }
+    .metric .row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .latency-good { color: var(--ok); } .latency-mid { color: var(--warn); } .latency-bad { color: var(--bad); }
 
-    .cheats { padding: 8px 16px 16px; overflow-y: auto; }
-    .cheats li { font-size: 13px; color: var(--muted); margin: 12px 0; line-height: 1.4; }
-    .cheats li b { color: var(--text); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; }
+    .cheats { padding: 6px 18px 18px; overflow-y: auto; margin: 0; list-style: none; }
+    .cheats li { font-size: 13px; color: var(--muted); margin: 14px 0; line-height: 1.45; padding-left: 14px; position: relative; }
+    .cheats li::before { content: ""; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .cheats li b { color: var(--text); display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
 
-    footer { padding: 14px 24px; border-top: 1px solid #2a3441; display: flex; align-items: center; gap: 16px; }
-    button {
-      font-size: 15px; font-weight: 600; padding: 11px 22px; border-radius: 10px; border: none;
-      cursor: pointer; transition: background .15s, transform .05s;
+    /* ---------- Footer ---------- */
+    footer {
+      padding: 14px 24px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 18px;
+      background: rgba(11,15,20,.6); backdrop-filter: blur(8px);
     }
-    button:active { transform: translateY(1px); }
-    #callBtn { background: var(--accent); color: #fff; }
-    #callBtn.end { background: var(--bad); }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .mic { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #3a4654; }
-    .dot.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(63,185,80,.18); }
-    .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+    #callBtn {
+      font-size: 15px; font-weight: 650; padding: 12px 24px; border-radius: 12px; border: none;
+      cursor: pointer; color: #fff; display: inline-flex; align-items: center; gap: 9px;
+      background: linear-gradient(180deg, #57a4ff, #3b82e8);
+      box-shadow: 0 8px 22px -8px rgba(79,156,249,.8), inset 0 1px 0 rgba(255,255,255,.2);
+      transition: transform .08s var(--ease), box-shadow .2s, background .2s, opacity .2s;
+    }
+    #callBtn:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -8px rgba(79,156,249,.9), inset 0 1px 0 rgba(255,255,255,.2); }
+    #callBtn:active { transform: translateY(1px); }
+    #callBtn.end { background: linear-gradient(180deg, #ff6b63, #e0473f); box-shadow: 0 8px 22px -8px rgba(248,81,73,.8), inset 0 1px 0 rgba(255,255,255,.2); }
+    #callBtn:disabled { opacity: .55; cursor: progress; transform: none; }
+    #callBtn svg { width: 17px; height: 17px; }
+    #callBtn .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .mic { display: flex; align-items: center; gap: 11px; color: var(--muted); font-size: 13px; }
+    #micMeter { display: inline-flex; align-items: center; gap: 3px; height: 22px; }
+    #micMeter .bar {
+      width: 3.5px; height: 4px; border-radius: 2px; background: #3a4654;
+      transform: scaleY(var(--h, .2)); transform-origin: center; transition: background .2s;
+    }
+    body.mic-on #micMeter .bar { background: var(--ok); }
+    .hint { color: var(--muted-2); font-size: 12.5px; margin-left: auto; text-align: right; }
+    kbd { font-family: inherit; background: var(--panel-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; font-size: 11.5px; color: var(--muted); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; gap: 14px; padding: 14px; overflow-y: auto; }
+      aside { flex-direction: row; flex-wrap: wrap; }
+      aside .panel { flex: 1 1 240px; }
+      .transcript-wrap { min-height: 48vh; }
+      .hint { display: none; }
+      header { padding: 14px 16px; } footer { padding: 12px 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>Riverside Family Health — Voice Scheduling</h1>
-      <div class="sub">Talk to Robin to book, reschedule, or cancel a consultation.</div>
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+        </svg>
+      </span>
+      <div>
+        <h1>Riverside Family Health — Voice Scheduling</h1>
+        <div class="sub">Talk to Robin to book, reschedule, or cancel a consultation.</div>
+      </div>
     </div>
-    <span id="status" class="pill">Idle</span>
+    <span id="status" class="pill" role="status" aria-live="polite">Idle</span>
   </header>
 
   <main>
     <section class="panel">
-      <h2>Live transcript</h2>
-      <div id="transcript"><div class="empty">Press <b>Start call</b> and allow your microphone to begin.</div></div>
+      <h2>
+        Live transcript
+        <span class="speaking-tag" aria-hidden="true">Robin speaking <span class="wave"><i></i><i></i><i></i><i></i></span></span>
+      </h2>
+      <div class="transcript-wrap">
+        <div id="transcript" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation transcript">
+          <div class="empty">
+            <span class="ring" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+            </span>
+            <div>Press <b>Start call</b> and allow your microphone to begin talking with Robin.</div>
+          </div>
+        </div>
+        <button id="jumpBtn" class="jump" type="button" aria-label="Scroll to latest message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          Latest
+        </button>
+      </div>
     </section>
 
     <aside>
       <div class="panel metric">
-        <h2 style="border:0;padding:0 0 10px">Last response latency</h2>
-        <div><span id="lat" class="big">—</span> <span class="unit">ms</span></div>
+        <h2 style="border:0;padding:0 0 6px">Last response latency</h2>
+        <div class="lat-line"><span id="lat" class="big">—</span> <span class="unit">ms</span></div>
+        <canvas id="spark" aria-hidden="true"></canvas>
         <div class="row"><span>Rolling average</span><b id="latAvg">—</b></div>
+        <div class="row"><span>Best</span><b id="latBest">—</b></div>
         <div class="row"><span>Turns measured</span><b id="latN">0</b></div>
-        <div class="row" style="margin-top:6px"><span>Call state</span><b id="callState">idle</b></div>
+        <div class="row"><span>Call state</span><b id="callState">idle</b></div>
       </div>
 
       <div class="panel" style="min-height:0">
@@ -107,9 +292,15 @@
   </main>
 
   <footer>
-    <button id="callBtn">Start call</button>
-    <div class="mic"><span id="micDot" class="dot"></span> microphone</div>
-    <span class="hint">Latency = silence-to-first-audio, measured in your browser.</span>
+    <button id="callBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span class="label">Start call</span>
+    </button>
+    <div class="mic" title="Live microphone level">
+      <span id="micMeter" aria-hidden="true"></span>
+      <span id="micLabel">microphone idle</span>
+    </div>
+    <span class="hint">Latency = silence-to-first-audio, measured in your browser. <kbd>Esc</kbd> ends the call.</span>
   </footer>
 
   <audio id="botAudio" autoplay></audio>

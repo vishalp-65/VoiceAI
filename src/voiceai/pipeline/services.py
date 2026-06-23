@@ -47,10 +47,21 @@ def create_stt(settings: Settings) -> DeepgramSTTService:
 
 
 def create_llm(settings: Settings) -> AnthropicLLMService:
-    """Claude with tool-calling. Default Haiku 4.5 for the lowest time-to-first-token."""
+    """Claude with tool-calling. Default Sonnet 4.6 for the lowest time-to-first-token.
+
+    `enable_prompt_caching=True` is the single biggest latency win here: the system
+    prompt + tool schemas (~2K static tokens) are otherwise re-encoded on every turn.
+    Pipecat marks the last two user messages with `cache_control`, so each turn reads
+    the whole stable prefix (system + tools + prior history) from Anthropic's cache
+    instead of reprocessing it — cutting input-token processing time and ~90% of input
+    cost. Watch for `cache_read_input_tokens > 0` in the logs to confirm it's working.
+    """
     kwargs: dict = {
         "api_key": settings.anthropic_api_key,
-        "settings": AnthropicLLMService.Settings(model=settings.llm_model),
+        "settings": AnthropicLLMService.Settings(
+            model=settings.llm_model,
+            enable_prompt_caching=True,
+        ),
     }
     if settings.anthropic_base_url:
         from anthropic import AsyncAnthropic
