@@ -97,7 +97,7 @@ async def health() -> JSONResponse:
     )
 
 
-@app.post("/api/offer")
+@app.api_route("/api/offer", methods=["POST", "PATCH"])
 async def offer(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     """WebRTC signaling. Creates a fresh pipeline for new peers; renegotiates existing ones."""
     # Imported lazily so `/health` and tests don't require the heavy WebRTC stack.

@@ -2,7 +2,8 @@ FROM python:3.11-slim AS base
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        gcc g++ libffi-dev libssl-dev && \
+        gcc g++ libffi-dev libssl-dev \
+        libgl1 libglib2.0-0 libxcb1 libsm6 libxext6 libxrender1 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
